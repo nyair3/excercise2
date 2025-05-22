@@ -81,7 +81,6 @@ int uthread_init(int quantum_usecs){
     threads[0].quantums = 1;
     threads[0].sleep_until = 0;
     threads[0].entry = NULL;
-    
     total_quantums = 1;
     current_thread_id = 0;
 
