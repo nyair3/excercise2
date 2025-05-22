@@ -1,0 +1,8 @@
+{
+    "C_Cpp.errorSquiggles": "disabled",
+    "files.associations": {
+        "spin_lock.h": "c",
+        "ticket_lock.h": "c",
+        "stdbool.h": "c"
+    }
+}

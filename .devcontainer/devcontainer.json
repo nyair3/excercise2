@@ -1,0 +1,12 @@
+{
+  "name": "C Development Container",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "settings": {},
+  "extensions": [
+    "ms-vscode.cpptools"
+  ],
+  "postCreateCommand": "apt update && apt install -y build-essential gdb",
+  "remoteUser": "root"
+}
