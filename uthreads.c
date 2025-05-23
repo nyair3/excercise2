@@ -203,10 +203,9 @@ int uthread_block(int tid)
         fprintf(stderr, "system error: cannot block main thread\n");
         return -1;
     }
-    else if (threads[tid].state == THREAD_BLOCKED)
+    else if (threads[tid].state == THREAD_BLOCKED) // is it an error ? or we just continue?
     {
-        fprintf(stderr, "system error: cannot block blocked thread\n");
-        return -1;
+        return 0;
     }
     threads[tid].state = THREAD_BLOCKED;
 
@@ -225,6 +224,19 @@ int uthread_block(int tid)
  */
 int uthread_resume(int tid)
 {
+    if (threads[tid].state = THREAD_BLOCKED)
+    {
+        threads[tid].state = THREAD_READY;
+    }
+    else if (threads[tid].state = THREAD_READY || threads[tid].state = THREAD_RUNNING)
+    {
+        return 0;
+    }
+    else if (threads[tid].state == THREAD_UNUSED)
+    {
+        fprintf(stderr, "system error: thread doesn't exist\n");
+        return -1;
+    }
 
     return 0;
 }
@@ -253,8 +265,7 @@ int uthread_sleep(int num_quantums)
  */
 int uthread_get_tid()
 {
-
-    return 0;
+    return threads[current_thread_id].tid;
 }
 
 /**
