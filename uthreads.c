@@ -21,8 +21,8 @@ int total_quantums = 0;
  *
  * Each thread's entry function must take no arguments and return void.
  */
-typedef void (*thread_entry_point)(void){
-
+typedef void (*thread_entry_point)(void)
+{
 }
 
 /* ===================================================================== */
@@ -32,7 +32,8 @@ typedef void (*thread_entry_point)(void){
 /**
  * @brief Enumeration of possible thread states.
  */
-typedef enum {
+typedef enum
+{
     THREAD_UNUSED = 0, /**< Slot is unused. */
     THREAD_READY,      /**< Thread is ready to run. */
     THREAD_RUNNING,    /**< Thread is currently executing. */
@@ -46,13 +47,14 @@ typedef enum {
  * Each thread (except for the main thread) has its own allocated stack and context.
  * The TCB stores all metadata required for managing the thread.
  */
-typedef struct {
-    int tid;                    /**< Unique thread identifier. */
-    thread_state_t state;       /**< Current thread state. */
-    sigjmp_buf env;             /**< Jump buffer for context switching using sigsetjmp/siglongjmp. */
-    int quantums;               /**< Count of quantums this thread has executed. */
-    int sleep_until;            /**< Global quantum count until which the thread should sleep (0 if not sleeping). */
-    thread_entry_point entry;   /**< Entry point function for the thread. */
+typedef struct
+{
+    int tid;                  /**< Unique thread identifier. */
+    thread_state_t state;     /**< Current thread state. */
+    sigjmp_buf env;           /**< Jump buffer for context switching using sigsetjmp/siglongjmp. */
+    int quantums;             /**< Count of quantums this thread has executed. */
+    int sleep_until;          /**< Global quantum count until which the thread should sleep (0 if not sleeping). */
+    thread_entry_point entry; /**< Entry point function for the thread. */
 } thread_t;
 
 /* ===================================================================== */
@@ -69,13 +71,15 @@ typedef struct {
  * @param quantum_usecs Length of a quantum in microseconds (must be positive).
  * @return 0 on success; -1 on error (e.g., if quantum_usecs is non-positive).
  */
-int uthread_init(int quantum_usecs){
-    //initialize all threads as unused
-    for (int i = 0; i < MAX_THREAD_NUM; i++) {
+int uthread_init(int quantum_usecs)
+{
+    // initialize all threads as unused
+    for (int i = 0; i < MAX_THREAD_NUM; i++)
+    {
         threads[i].state = THREAD_UNUSED;
     }
-    
-    //main thread
+
+    // main thread
     threads[0].tid = 0;
     threads[0].state = THREAD_RUNNING;
     threads[0].quantums = 1;
@@ -98,34 +102,39 @@ int uthread_init(int quantum_usecs){
  * @return On success, returns the new thread’s ID; on failure, returns -1.
  */
 
-int uthread_spawn(thread_entry_point entry_point){
-    if (entry_point == NULL) {
+int uthread_spawn(thread_entry_point entry_point)
+{
+    if (entry_point == NULL)
+    {
         fprintf(stderr, "system error: entry point cannot be NULL\n");
         return -1;
     }
-    
+
     // Find available non-negative thread ID
     int new_tid = -1;
-    for (int i = 0; i < MAX_THREAD_NUM; i++) {
-        if (threads[i].state == THREAD_UNUSED) {
+    for (int i = 0; i < MAX_THREAD_NUM; i++)
+    {
+        if (threads[i].state == THREAD_UNUSED)
+        {
             new_tid = i;
             break;
         }
     }
-    
-    //if we reach max threads
-    if (new_tid == -1) {
+
+    // if we reach max threads
+    if (new_tid == -1)
+    {
         fprintf(stderr, "system error: max threads reached\n");
         return -1;
     }
-    
+
     // Initialize new thread
     threads[new_tid].tid = new_tid;
     threads[new_tid].state = THREAD_READY;
     threads[new_tid].quantums = 0;
     threads[new_tid].sleep_until = 0;
     threads[new_tid].entry = entry_point;
-    
+
     return new_tid;
 }
 
@@ -141,7 +150,32 @@ int uthread_spawn(thread_entry_point entry_point){
  * @return 0 on success; -1 on error. (Note: if a thread terminates itself or if the main thread terminates,
  * the function does not return.)
  */
-int uthread_terminate(int tid){
+int uthread_terminate(int tid)
+{
+
+    if (threads[tid].state == THREAD_UNUSED)
+    {
+        fprintf(stderr, "system error: thread doesn't exist\n");
+        return -1;
+    }
+
+    // If terminating main thread (tid == 0), terminate entire process
+    if (tid == 0)
+    {
+        // Release resources for all threads first
+        for (int i = 0; i < MAX_THREAD_NUM; i++)
+        {
+            threads[i].state = THREAD_UNUSED;
+        }
+        exit(1);
+    }
+
+    // Release all resources allocated for this thread
+    threads[tid].tid = -1;
+    threads[tid].state = THREAD_TERMINATED; // Thread unused?
+    threads[tid].quantums = 0;
+    threads[tid].sleep_until = 0;
+    threads[tid].entry = NULL; // Not entry_point
 
     return 0;
 }
@@ -157,7 +191,24 @@ int uthread_terminate(int tid){
  * @param tid Thread ID to block.
  * @return 0 on success; -1 on error.
  */
-int uthread_block(int tid){
+int uthread_block(int tid)
+{
+    if (threads[tid].state == THREAD_UNUSED)
+    {
+        fprintf(stderr, "system error: thread doesn't exist\n");
+        return -1;
+    }
+    else if (threads[tid].tid == 0)
+    {
+        fprintf(stderr, "system error: cannot block main thread\n");
+        return -1;
+    }
+    else if (threads[tid].state == THREAD_BLOCKED)
+    {
+        fprintf(stderr, "system error: cannot block blocked thread\n");
+        return -1;
+    }
+    threads[tid].state = THREAD_BLOCKED;
 
     return 0;
 }
@@ -172,8 +223,9 @@ int uthread_block(int tid){
  * @param tid Thread ID to resume.
  * @return 0 on success; -1 on error.
  */
-int uthread_resume(int tid){
-    
+int uthread_resume(int tid)
+{
+
     return 0;
 }
 
@@ -188,7 +240,8 @@ int uthread_resume(int tid){
  * @param num_quantums Number of quantums to sleep.
  * @return 0 on success; -1 on error.
  */
-int uthread_sleep(int num_quantums){
+int uthread_sleep(int num_quantums)
+{
 
     return 0;
 }
@@ -198,7 +251,8 @@ int uthread_sleep(int num_quantums){
  *
  * @return The thread ID of the calling thread.
  */
-int uthread_get_tid(){
+int uthread_get_tid()
+{
 
     return 0;
 }
@@ -211,7 +265,8 @@ int uthread_get_tid(){
  *
  * @return Total number of quantums.
  */
-int uthread_get_total_quantums(){
+int uthread_get_total_quantums()
+{
 
     return 0;
 }
@@ -225,7 +280,8 @@ int uthread_get_total_quantums(){
  * @param tid Thread ID.
  * @return Number of quantums for the specified thread; -1 on error.
  */
-int uthread_get_quantums(int tid){
+int uthread_get_quantums(int tid)
+{
 
     return 0;
 }
@@ -245,7 +301,8 @@ int uthread_get_quantums(int tid){
  * This function examines the READY queue and selects the next thread for execution.
  * It handles state transitions and triggers a context switch.
  */
-void schedule_next(void){
+void schedule_next(void)
+{
 
     return 0;
 }
@@ -258,7 +315,8 @@ void schedule_next(void){
  * @param current Pointer to the current thread's TCB.
  * @param next Pointer to the next thread's TCB.
  */
-void context_switch(thread_t *current, thread_t *next){
+void context_switch(thread_t *current, thread_t *next)
+{
 
     return 0;
 }
@@ -271,8 +329,9 @@ void context_switch(thread_t *current, thread_t *next){
  *
  * @param signum The signal number (e.g., SIGVTALRM).
  */
-void timer_handler(int signum){
-    
+void timer_handler(int signum)
+{
+
     return 0;
 }
 
@@ -287,8 +346,9 @@ void timer_handler(int signum){
  * @param stack Pointer to the thread's allocated stack (a char array).
  * @param entry_point Pointer to the thread's entry function.
  */
-void setup_thread(int tid, char *stack, thread_entry_point entry_point){
-    
+void setup_thread(int tid, char *stack, thread_entry_point entry_point)
+{
+
     return 0;
 }
 
