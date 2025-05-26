@@ -14,6 +14,7 @@
 thread_t threads[MAX_THREAD_NUM];
 char stacks[MAX_THREAD_NUM][STACK_SIZE];
 int current_thread_id = 0;
+static int total_quantums = 0;
 
 /**
  * @brief Function pointer type for a thread's entry point.
@@ -59,7 +60,7 @@ typedef struct
 /* ===================================================================== */
 /*                           External Interface                          */
 /* ===================================================================== */
-static int total_quantums = 1;
+
 /**
  * @brief Initializes the user-level thread library.
  *
@@ -294,8 +295,19 @@ int uthread_get_total_quantums()
  */
 int uthread_get_quantums(int tid)
 {
-
-    return 0;
+    if (threads[tid].state == THREAD_UNUSED)
+    {
+        fprintf(stderr, "system error: thread doesn't exist\n");
+        return -1;
+    }
+    else if (threads[tid].state == THREAD_RUNNING)
+    {
+        return threads[tid].quantums + total_quantums;
+    }
+    else
+    {
+        return threads[tid].quantums;
+    }
 }
 
 /* ===================================================================== */
@@ -316,7 +328,24 @@ int uthread_get_quantums(int tid)
 void schedule_next(void)
 {
 
-    return 0;
+    int next_tid = -1;
+    for (int i = 1; i < MAX_THREAD_NUM; i++)
+    {
+        int check_tid = (current_thread_id + i) % MAX_THREAD_NUM;
+        if (threads[check_tid].state == THREAD_READY)
+        {
+            next_tid = check_tid;
+            break;
+        }
+    }
+
+    if (next_tid == -1)
+    {
+        return;
+    }
+
+    current_thread_id = next_tid;
+    threads[next_tid].state = THREAD_RUNNING;
 }
 
 /**
