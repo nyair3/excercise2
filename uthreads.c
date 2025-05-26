@@ -14,7 +14,6 @@
 thread_t threads[MAX_THREAD_NUM];
 char stacks[MAX_THREAD_NUM][STACK_SIZE];
 int current_thread_id = 0;
-int total_quantums = 0;
 
 /**
  * @brief Function pointer type for a thread's entry point.
@@ -60,7 +59,7 @@ typedef struct
 /* ===================================================================== */
 /*                           External Interface                          */
 /* ===================================================================== */
-
+static int total_quantums = 1;
 /**
  * @brief Initializes the user-level thread library.
  *
@@ -203,10 +202,6 @@ int uthread_block(int tid)
         fprintf(stderr, "system error: cannot block main thread\n");
         return -1;
     }
-    else if (threads[tid].state == THREAD_BLOCKED) // is it an error ? or we just continue?
-    {
-        return 0;
-    }
     threads[tid].state = THREAD_BLOCKED;
 
     return 0;
@@ -254,7 +249,13 @@ int uthread_resume(int tid)
  */
 int uthread_sleep(int num_quantums)
 {
-
+    if (current_thread_id == 0)
+    {
+        fprintf(stderr, "system error: cannot put main thread to sleep\n");
+        return -1;
+    }
+    threads[current_thread_id].sleep_until = uthread_get_total_quantums() + num_quantums;
+    threads[current_thread_id].state = THREAD_BLOCKED;
     return 0;
 }
 
@@ -279,14 +280,14 @@ int uthread_get_tid()
 int uthread_get_total_quantums()
 {
 
-    return 0;
+    return total_quantums;
 }
 
 /**
  * @brief Returns the number of quantums the thread with the specified tid has run.
  *
  * For a thread in the RUNNING state, the current quantum is included.
- * An error is returned if no thread with the given tid exists.
+ * An error is retursned if no thread with the given tid exists.
  *
  * @param tid Thread ID.
  * @return Number of quantums for the specified thread; -1 on error.
