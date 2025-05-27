@@ -1,6 +1,3 @@
-#ifndef _UTHREADS_H
-#define _UTHREADS_H
-
 #include <stdlib.h>
 #include <signal.h>
 #include <setjmp.h>
@@ -9,57 +6,12 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
-#include <uthreads.h>
+#include "uthreads.h"
 
 thread_t threads[MAX_THREAD_NUM];
 char stacks[MAX_THREAD_NUM][STACK_SIZE];
 int current_thread_id = 0;
 static int total_quantums = 0;
-
-/**
- * @brief Function pointer type for a thread's entry point.
- *
- * Each thread's entry function must take no arguments and return void.
- */
-typedef void (*thread_entry_point)(void)
-{
-}
-
-/* ===================================================================== */
-/*                        Internal Data Structures                       */
-/* ===================================================================== */
-
-/**
- * @brief Enumeration of possible thread states.
- */
-typedef enum
-{
-    THREAD_UNUSED = 0, /**< Slot is unused. */
-    THREAD_READY,      /**< Thread is ready to run. */
-    THREAD_RUNNING,    /**< Thread is currently executing. */
-    THREAD_BLOCKED,    /**< Thread is blocked (explicitly or sleeping). */
-    THREAD_TERMINATED  /**< Thread has finished execution (internal use only). */
-} thread_state_t;
-
-/**
- * @brief Thread Control Block (TCB)
- *
- * Each thread (except for the main thread) has its own allocated stack and context.
- * The TCB stores all metadata required for managing the thread.
- */
-typedef struct
-{
-    int tid;                  /**< Unique thread identifier. */
-    thread_state_t state;     /**< Current thread state. */
-    sigjmp_buf env;           /**< Jump buffer for context switching using sigsetjmp/siglongjmp. */
-    int quantums;             /**< Count of quantums this thread has executed. */
-    int sleep_until;          /**< Global quantum count until which the thread should sleep (0 if not sleeping). */
-    thread_entry_point entry; /**< Entry point function for the thread. */
-} thread_t;
-
-/* ===================================================================== */
-/*                           External Interface                          */
-/* ===================================================================== */
 
 /**
  * @brief Initializes the user-level thread library.
@@ -220,11 +172,11 @@ int uthread_block(int tid)
  */
 int uthread_resume(int tid)
 {
-    if (threads[tid].state = THREAD_BLOCKED)
+    if (threads[tid].state == THREAD_BLOCKED)
     {
         threads[tid].state = THREAD_READY;
     }
-    else if (threads[tid].state = THREAD_READY || threads[tid].state = THREAD_RUNNING)
+    else if (threads[tid].state == THREAD_READY || threads[tid].state == THREAD_RUNNING)
     {
         return 0;
     }
@@ -346,6 +298,7 @@ void schedule_next(void)
 
     current_thread_id = next_tid;
     threads[next_tid].state = THREAD_RUNNING;
+    threads[next_tid].entry();
 }
 
 /**
@@ -358,8 +311,7 @@ void schedule_next(void)
  */
 void context_switch(thread_t *current, thread_t *next)
 {
-
-    return 0;
+    return;
 }
 
 /**
@@ -372,8 +324,7 @@ void context_switch(thread_t *current, thread_t *next)
  */
 void timer_handler(int signum)
 {
-
-    return 0;
+    return;
 }
 
 /**
@@ -390,7 +341,5 @@ void timer_handler(int signum)
 void setup_thread(int tid, char *stack, thread_entry_point entry_point)
 {
 
-    return 0;
+    return;
 }
-
-#endif /* _UTHREADS_H */
