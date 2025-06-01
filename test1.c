@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <unistd.h>
 #include <stdbool.h>
@@ -5,7 +6,6 @@
 #include <stdatomic.h>
 #include <stdint.h>
 #include "uthreads.h"
-
 atomic_int done;
 
 void userland_sleep(int usecs)

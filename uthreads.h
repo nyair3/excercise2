@@ -1,6 +1,8 @@
 #ifndef _UTHREADS_H
 #define _UTHREADS_H
 
+#define _GNU_SOURCE
+
 #include <stdlib.h>
 #include <signal.h>
 #include <setjmp.h>
