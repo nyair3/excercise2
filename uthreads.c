@@ -7,6 +7,15 @@
 #include <string.h>
 #include <stdio.h>
 #include "uthreads.h"
+#ifdef _x86_64_
+#define JB_SP 6
+#define JB_PC 7
+#else
+#error "Unsupported architecture"
+#endif
+#define translate_address(x) ((address_t)(x))  
+typedef unsigned long address_t;
+
 
 thread_t threads[MAX_THREAD_NUM];
 char stacks[MAX_THREAD_NUM][STACK_SIZE];
@@ -42,7 +51,7 @@ int uthread_init(int quantum_usecs)
 
     return 0;
 }
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Creates a new thread.
  *
@@ -89,7 +98,7 @@ int uthread_spawn(thread_entry_point entry_point)
 
     return new_tid;
 }
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Terminates a thread.
  *
@@ -131,7 +140,7 @@ int uthread_terminate(int tid)
 
     return 0;
 }
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Blocks a thread.
  *
@@ -159,7 +168,7 @@ int uthread_block(int tid)
 
     return 0;
 }
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Resumes a blocked thread.
  *
@@ -188,7 +197,7 @@ int uthread_resume(int tid)
 
     return 0;
 }
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Puts the running thread to sleep.
  *
@@ -211,7 +220,7 @@ int uthread_sleep(int num_quantums)
     threads[current_thread_id].state = THREAD_BLOCKED;
     return 0;
 }
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Returns the calling thread's ID.
  *
@@ -221,7 +230,7 @@ int uthread_get_tid()
 {
     return threads[current_thread_id].tid;
 }
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Returns the total number of quantums since the library was initialized.
  *
@@ -235,7 +244,7 @@ int uthread_get_total_quantums()
 
     return total_quantums;
 }
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Returns the number of quantums the thread with the specified tid has run.
  *
@@ -261,7 +270,7 @@ int uthread_get_quantums(int tid)
         return threads[tid].quantums;
     }
 }
-
+//--------------------------------------------------------------------------------------------------//
 /* ===================================================================== */
 /*              Internal Helper Functions and Structures                 */
 /* ===================================================================== */
@@ -270,7 +279,7 @@ int uthread_get_quantums(int tid)
  * They provide guidance on how to structure your implementation using sigsetjmp/siglongjmp
  * and manually managed stacks.
  */
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Scheduler: Selects the next thread to run.
  *
@@ -300,7 +309,7 @@ void schedule_next(void)
     threads[next_tid].state = THREAD_RUNNING;
     threads[next_tid].entry();
 }
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Context switch helper.
  *
@@ -311,9 +320,16 @@ void schedule_next(void)
  */
 void context_switch(thread_t *current, thread_t *next)
 {
-    return;
+    // Save current thread's context
+    int ret_val = sigsetjmp(current->env, 1);
+    
+    if (ret_val == 0) {
+        // First time - jump to next thread
+        siglongjmp(next->env, 1);
+    }
+    // When we return here (ret_val != 0), this thread is being resumed
 }
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Timer signal handler.
  *
@@ -324,9 +340,18 @@ void context_switch(thread_t *current, thread_t *next)
  */
 void timer_handler(int signum)
 {
-    return;
-}
-
+    // updates global quantum counters
+    total_quantums++;
+    
+    // Increments current thread's quantum count
+    threads[current_thread_id].quantums++;
+    
+    // Current thread's quantum expired - move to READY
+    threads[current_thread_id].state = THREAD_READY;
+    
+    // Schedule next thread
+    schedule_next();}
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Initializes a thread's jump buffer.
  *
@@ -340,6 +365,17 @@ void timer_handler(int signum)
  */
 void setup_thread(int tid, char *stack, thread_entry_point entry_point)
 {
+    address_t sp = (address_t)(stack + STACK_SIZE - sizeof(address_t));
+    address_t pc = (address_t)(entry_point);
 
-    return;
+    // Saves the current context 
+    sigsetjmp(threads[tid].env, 1);
+
+    // Sets the stack pointer and the program counter
+    threads[tid].env->__jmpbuf[JB_SP] = translate_address(sp);
+    threads[tid].env->__jmpbuf[JB_PC] = translate_address(pc);
+
+    // Clears the signal mask
+    sigemptyset(&threads[tid].env->__saved_mask);
 }
+//---------------------------------------------End of File--------------------------------------------------------//

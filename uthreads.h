@@ -26,11 +26,11 @@
  * Each thread's entry function must take no arguments and return void.
  */
 typedef void (*thread_entry_point)(void);
-
+//--------------------------------------------------------------------------------------------------//
 /* ===================================================================== */
 /*                        Internal Data Structures                       */
 /* ===================================================================== */
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Enumeration of possible thread states.
  */
@@ -41,7 +41,7 @@ typedef enum {
     THREAD_BLOCKED,    /**< Thread is blocked (explicitly or sleeping). */
     THREAD_TERMINATED  /**< Thread has finished execution (internal use only). */
 } thread_state_t;
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Thread Control Block (TCB)
  *
@@ -60,7 +60,7 @@ typedef struct {
 /* ===================================================================== */
 /*                           External Interface                          */
 /* ===================================================================== */
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Initializes the user-level thread library.
  *
@@ -72,7 +72,7 @@ typedef struct {
  * @return 0 on success; -1 on error (e.g., if quantum_usecs is non-positive).
  */
 int uthread_init(int quantum_usecs);
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Creates a new thread.
  *
@@ -84,7 +84,7 @@ int uthread_init(int quantum_usecs);
  * @return On success, returns the new thread’s ID; on failure, returns -1.
  */
 int uthread_spawn(thread_entry_point entry_point);
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Terminates a thread.
  *
@@ -98,7 +98,7 @@ int uthread_spawn(thread_entry_point entry_point);
  * the function does not return.)
  */
 int uthread_terminate(int tid);
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Blocks a thread.
  *
@@ -111,7 +111,7 @@ int uthread_terminate(int tid);
  * @return 0 on success; -1 on error.
  */
 int uthread_block(int tid);
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Resumes a blocked thread.
  *
@@ -123,7 +123,7 @@ int uthread_block(int tid);
  * @return 0 on success; -1 on error.
  */
 int uthread_resume(int tid);
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Puts the running thread to sleep.
  *
@@ -136,14 +136,14 @@ int uthread_resume(int tid);
  * @return 0 on success; -1 on error.
  */
 int uthread_sleep(int num_quantums);
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Returns the calling thread's ID.
  *
  * @return The thread ID of the calling thread.
  */
 int uthread_get_tid();
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Returns the total number of quantums since the library was initialized.
  *
@@ -153,7 +153,7 @@ int uthread_get_tid();
  * @return Total number of quantums.
  */
 int uthread_get_total_quantums();
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Returns the number of quantums the thread with the specified tid has run.
  *
@@ -173,7 +173,7 @@ int uthread_get_quantums(int tid);
  * They provide guidance on how to structure your implementation using sigsetjmp/siglongjmp
  * and manually managed stacks.
  */
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Scheduler: Selects the next thread to run.
  *
@@ -181,7 +181,7 @@ int uthread_get_quantums(int tid);
  * It handles state transitions and triggers a context switch.
  */
 void schedule_next(void);
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Context switch helper.
  *
@@ -191,7 +191,7 @@ void schedule_next(void);
  * @param next Pointer to the next thread's TCB.
  */
 void context_switch(thread_t *current, thread_t *next);
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Timer signal handler.
  *
@@ -201,7 +201,7 @@ void context_switch(thread_t *current, thread_t *next);
  * @param signum The signal number (e.g., SIGVTALRM).
  */
 void timer_handler(int signum);
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Initializes a thread's jump buffer.
  *
@@ -216,3 +216,4 @@ void timer_handler(int signum);
 void setup_thread(int tid, char *stack, thread_entry_point entry_point);
 
 #endif /* _UTHREADS_H */
+//---------------------------------------------End of File--------------------------------------------------------//
