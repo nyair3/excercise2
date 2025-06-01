@@ -11,7 +11,7 @@
 #define JB_SP 6
 #define JB_PC 7
 #else
-#error "Unsupported architecture"
+//#error "Unsupported architecture"
 #endif
 #define translate_address(x) ((address_t)(x))  
 typedef unsigned long address_t;
@@ -368,14 +368,22 @@ void setup_thread(int tid, char *stack, thread_entry_point entry_point)
     address_t sp = (address_t)(stack + STACK_SIZE - sizeof(address_t));
     address_t pc = (address_t)(entry_point);
 
+    /*
+    threads[tid].env->__jmpbuf[JB_SP] = translate_address(sp);
+    threads[tid].env->__jmpbuf[JB_PC] = translate_address(pc);
+    sigemptyset(&threads[tid].env->__saved_mask);
+    */
+
     // Saves the current context 
     sigsetjmp(threads[tid].env, 1);
 
     // Sets the stack pointer and the program counter
-    threads[tid].env->__jmpbuf[JB_SP] = translate_address(sp);
-    threads[tid].env->__jmpbuf[JB_PC] = translate_address(pc);
+    threads[tid].env[0].__jmpbuf[JB_SP] = translate_address(sp);
+    threads[tid].env[0].__jmpbuf[JB_PC] = translate_address(pc);
 
     // Clears the signal mask
-    sigemptyset(&threads[tid].env->__saved_mask);
+    sigemptyset(&threads[tid].env[0].__saved_mask);
 }
 //---------------------------------------------End of File--------------------------------------------------------//
+
+
