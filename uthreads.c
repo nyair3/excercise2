@@ -14,9 +14,8 @@
 #else
 #error "Unsupported architecture"
 #endif
-//#define translate_address(x) ((address_t)(x))  
+// #define translate_address(x) ((address_t)(x))
 typedef unsigned long address_t;
-
 
 thread_t threads[MAX_THREAD_NUM];
 char stacks[MAX_THREAD_NUM][STACK_SIZE];
@@ -24,13 +23,14 @@ int current_thread_id = 0;
 static int total_quantums = 0;
 
 //--------------------------------------------------------------------------------------------------//
-static address_t translate_address(address_t addr)
+address_t translate_address(address_t addr)
 {
     address_t ret;
-    __asm__ volatile("xor %%fs:0x30, %0\n"
-                 "rol $0x11, %0\n"
-                 : "=g" (ret)
-                 : "0" (addr));
+    asm volatile("xor %% fs :0x30 , %0\n"
+                 "rol $0x11 , %0\n"
+
+                 : "=g"(ret)
+                 : "0"(addr));
     return ret;
 }
 //--------------------------------------------------------------------------------------------------//
@@ -60,7 +60,7 @@ int uthread_init(int quantum_usecs)
     threads[0].entry = NULL;
     total_quantums = 1;
     current_thread_id = 0;
-
+    schedule_next();
     return 0;
 }
 //--------------------------------------------------------------------------------------------------//
@@ -100,13 +100,25 @@ int uthread_spawn(thread_entry_point entry_point)
         fprintf(stderr, "system error: max threads reached\n");
         return -1;
     }
+    setup_thread(new_tid, stacks[new_tid], entry_point);
 
-    // Initialize new thread
-    threads[new_tid].tid = new_tid;
-    threads[new_tid].state = THREAD_READY;
-    threads[new_tid].quantums = 0;
-    threads[new_tid].sleep_until = 0;
-    threads[new_tid].entry = entry_point;
+    static bool first_spawn = true;
+    if (first_spawn)
+    {
+        first_spawn = false;
+
+        // Save main thread context first
+        int ret_val = sigsetjmp(threads[0].env, 1);
+        if (ret_val == 0)
+        {
+            // Initialize new thread
+            threads[new_tid].tid = new_tid;
+            threads[new_tid].state = THREAD_READY;
+            threads[new_tid].quantums = 0;
+            threads[new_tid].sleep_until = 0;
+            threads[new_tid].entry = entry_point;
+        }
+    }
 
     return new_tid;
 }
@@ -334,8 +346,9 @@ void context_switch(thread_t *current, thread_t *next)
 {
     // Save current thread's context
     int ret_val = sigsetjmp(current->env, 1);
-    
-    if (ret_val == 0) {
+
+    if (ret_val == 0)
+    {
         // First time - jump to next thread
         siglongjmp(next->env, 1);
     }
@@ -354,15 +367,16 @@ void timer_handler(int signum)
 {
     // updates global quantum counters
     total_quantums++;
-    
+
     // Increments current thread's quantum count
     threads[current_thread_id].quantums++;
-    
+
     // Current thread's quantum expired - move to READY
     threads[current_thread_id].state = THREAD_READY;
-    
+
     // Schedule next thread
-    schedule_next();}
+    schedule_next();
+}
 //--------------------------------------------------------------------------------------------------//
 /**
  * @brief Initializes a thread's jump buffer.
@@ -391,15 +405,13 @@ void setup_thread(int tid, char *stack, thread_entry_point entry_point)
     sigemptyset(&threads[tid].env[0].__saved_mask);
     */
 
-    // Saves the current context 
+    // Saves the current context
     sigsetjmp(threads[tid].env, 1);
 
     // Sets the stack pointer and the program counter
-   threads[tid].env->__jmpbuf[JB_SP] = translate_address(sp);
+    threads[tid].env->__jmpbuf[JB_SP] = translate_address(sp);
     threads[tid].env->__jmpbuf[JB_PC] = translate_address(pc);
     sigemptyset(&threads[tid].env->__saved_mask);
 }
 
 //---------------------------------------------End of File--------------------------------------------------------//
-
-
