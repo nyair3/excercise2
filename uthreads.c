@@ -17,6 +17,12 @@
 //#define translate_address(x) ((address_t)(x))  
 typedef unsigned long address_t;
 
+
+thread_t threads[MAX_THREAD_NUM];
+char stacks[MAX_THREAD_NUM][STACK_SIZE];
+int current_thread_id = 0;
+static int total_quantums = 0;
+
 //--------------------------------------------------------------------------------------------------//
 static address_t translate_address(address_t addr)
 {
@@ -27,12 +33,7 @@ static address_t translate_address(address_t addr)
                  : "0" (addr));
     return ret;
 }
-
-thread_t threads[MAX_THREAD_NUM];
-char stacks[MAX_THREAD_NUM][STACK_SIZE];
-int current_thread_id = 0;
-static int total_quantums = 0;
-
+//--------------------------------------------------------------------------------------------------//
 /**
  * @brief Initializes the user-level thread library.
  *
