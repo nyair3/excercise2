@@ -26,7 +26,7 @@ static int total_quantums = 0;
 address_t translate_address(address_t addr)
 {
     address_t ret;
-    asm volatile("xor %% fs :0x30 , %0\n"
+    asm volatile("xor %%fs:0x30, %0\n"
                  "rol $0x11 , %0\n"
 
                  : "=g"(ret)
@@ -60,7 +60,30 @@ int uthread_init(int quantum_usecs)
     threads[0].entry = NULL;
     total_quantums = 1;
     current_thread_id = 0;
-    schedule_next();
+
+    
+    struct sigaction sa;
+    sa.sa_handler = timer_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+
+    if (sigaction(SIGVTALRM, &sa, NULL) == -1)
+    {
+        fprintf(stderr, "system error: sigaction failed\n");
+        exit(1);
+    }
+
+    struct itimerval timer;
+    timer.it_value.tv_sec = quantum_usecs / 1000000;
+    timer.it_value.tv_usec = quantum_usecs % 1000000;
+    timer.it_interval.tv_sec = quantum_usecs / 1000000;
+    timer.it_interval.tv_usec = quantum_usecs % 1000000;
+
+    if (setitimer(ITIMER_VIRTUAL, &timer, NULL) == -1)
+    {
+        fprintf(stderr, "system error: setitimer failed\n");
+        exit(1);
+    }
     return 0;
 }
 //--------------------------------------------------------------------------------------------------//
@@ -100,25 +123,15 @@ int uthread_spawn(thread_entry_point entry_point)
         fprintf(stderr, "system error: max threads reached\n");
         return -1;
     }
+    // Initializes thread
+    threads[new_tid].tid = new_tid;
+    threads[new_tid].state = THREAD_READY;
+    threads[new_tid].quantums = 0;
+    threads[new_tid].sleep_until = 0;
+    threads[new_tid].entry = entry_point;
+
+    // set up its context
     setup_thread(new_tid, stacks[new_tid], entry_point);
-
-    static bool first_spawn = true;
-    if (first_spawn)
-    {
-        first_spawn = false;
-
-        // Save main thread context first
-        int ret_val = sigsetjmp(threads[0].env, 1);
-        if (ret_val == 0)
-        {
-            // Initialize new thread
-            threads[new_tid].tid = new_tid;
-            threads[new_tid].state = THREAD_READY;
-            threads[new_tid].quantums = 0;
-            threads[new_tid].sleep_until = 0;
-            threads[new_tid].entry = entry_point;
-        }
-    }
 
     return new_tid;
 }
