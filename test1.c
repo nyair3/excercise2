@@ -15,7 +15,8 @@ void userland_sleep(int usecs)
 
     uint64_t nanos = usecs * 1e3;
 
-    while (1) {
+    while (1)
+    {
         clock_gettime(CLOCK_MONOTONIC, &current);
         uint64_t elapsed = (current.tv_sec - start.tv_sec) * 1e9 +
                            (current.tv_nsec - start.tv_nsec);
@@ -27,7 +28,7 @@ void userland_sleep(int usecs)
 void f()
 {
     int tid = uthread_get_tid();
-    for(int i = 0; i < 100; i++)
+    for (int i = 0; i < 100; i++)
     {
         printf("Thread %d: %d\n", tid, i);
         int x = 0;
@@ -39,12 +40,15 @@ void f()
 
 int main(void)
 {
+    printf("started");
     atomic_store(&done, 0);
+    printf("atomic store done");
     uthread_init(1000);
     uthread_spawn(f);
     uthread_spawn(f);
-    while(atomic_load(&done) < 2)
-    {};
+    while (atomic_load(&done) < 2)
+    {
+    };
     printf("Done!\n");
     uthread_terminate(0);
     return 0;

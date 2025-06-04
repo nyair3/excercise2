@@ -14,9 +14,19 @@
 #else
 #error "Unsupported architecture"
 #endif
-#define translate_address(x) ((address_t)(x))  
+//#define translate_address(x) ((address_t)(x))  
 typedef unsigned long address_t;
 
+//--------------------------------------------------------------------------------------------------//
+static address_t translate_address(address_t addr)
+{
+    address_t ret;
+    __asm__ volatile("xor %%fs:0x30, %0\n"
+                 "rol $0x11, %0\n"
+                 : "=g" (ret)
+                 : "0" (addr));
+    return ret;
+}
 
 thread_t threads[MAX_THREAD_NUM];
 char stacks[MAX_THREAD_NUM][STACK_SIZE];
@@ -388,6 +398,7 @@ void setup_thread(int tid, char *stack, thread_entry_point entry_point)
     threads[tid].env->__jmpbuf[JB_PC] = translate_address(pc);
     sigemptyset(&threads[tid].env->__saved_mask);
 }
+
 //---------------------------------------------End of File--------------------------------------------------------//
 
 
