@@ -61,7 +61,6 @@ int uthread_init(int quantum_usecs)
     total_quantums = 1;
     current_thread_id = 0;
 
-    
     struct sigaction sa;
     sa.sa_handler = timer_handler;
     sigemptyset(&sa.sa_mask);
@@ -174,8 +173,24 @@ int uthread_terminate(int tid)
     threads[tid].quantums = 0;
     threads[tid].sleep_until = 0;
     threads[tid].entry = NULL; // Not entry_point
-
+    if (tid == current_thread_id)
+    {
+        schedule_next();
+        // Should never reach here, but just in case:
+    }
     return 0;
+}
+//--------------------------------------------------------------------------------------------------//
+static void thread_wrapper(void)
+{
+    int tid = current_thread_id;
+    thread_entry_point func = threads[tid].entry;
+
+    // Call the actual thread function
+    func();
+
+    // When function returns, terminate the thread (this won't return)
+    uthread_terminate(tid);
 }
 //--------------------------------------------------------------------------------------------------//
 /**
@@ -405,7 +420,7 @@ void timer_handler(int signum)
 void setup_thread(int tid, char *stack, thread_entry_point entry_point)
 {
     address_t sp = (address_t)(stack + STACK_SIZE - sizeof(address_t));
-    address_t pc = (address_t)(entry_point);
+    address_t pc = (address_t)(thread_wrapper);
 
     /*
     threads[tid].env->__jmpbuf[JB_SP] = translate_address(sp);
