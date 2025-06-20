@@ -15,11 +15,36 @@
 #error "Unsupported architecture"
 #endif
 typedef unsigned long address_t;
+static sigset_t sigvtalrm_set;
 
 thread_t threads[MAX_THREAD_NUM];
 char stacks[MAX_THREAD_NUM][STACK_SIZE];
 int current_thread_id = 0;
 static int total_quantums = 0;
+
+//--------------------------------------------------------------------------------------------------//
+
+static void enter_crit_sec()
+{
+    // block signals
+    if (sigprocmask(SIG_BLOCK, &sigvtalrm_set, NULL) < 0)
+    {
+        fprintf(stderr, "system error: failed to block signal\n");
+        exit(1);
+    }
+}
+
+//--------------------------------------------------------------------------------------------------//
+
+static void exit_crit_sec()
+{
+    // ublock signals
+    if (sigprocmask(SIG_UNBLOCK, &sigvtalrm_set, NULL) < 0)
+    {
+        fprintf(stderr, "system error: failed to unblock signal\n");
+        exit(1);
+    }
+}
 
 //--------------------------------------------------------------------------------------------------//
 
@@ -52,6 +77,10 @@ int uthread_init(int quantum_usecs)
     threads[0].entry = NULL;
     total_quantums = 1;
     current_thread_id = 0;
+
+    // for critical section
+    sigemptyset(&sigvtalrm_set);
+    sigaddset(&sigvtalrm_set, SIGVTALRM);
 
     // Set up signal handler
     struct sigaction sa;
@@ -88,10 +117,13 @@ int uthread_init(int quantum_usecs)
 
 int uthread_spawn(thread_entry_point entry_point)
 {
+    enter_crit_sec();
+
     // chech if entry point is null
     if (entry_point == NULL)
     {
         fprintf(stderr, "system error: entry point cannot be NULL\n");
+        exit_crit_sec();
         return -1;
     }
 
@@ -110,6 +142,7 @@ int uthread_spawn(thread_entry_point entry_point)
     if (new_tid == -1)
     {
         fprintf(stderr, "system error: max threads reached\n");
+        exit_crit_sec();
         return -1;
     }
 
@@ -123,6 +156,7 @@ int uthread_spawn(thread_entry_point entry_point)
     // set up its context
     setup_thread(new_tid, stacks[new_tid], entry_point);
 
+    exit_crit_sec();
     return new_tid;
 }
 
@@ -130,10 +164,12 @@ int uthread_spawn(thread_entry_point entry_point)
 
 int uthread_terminate(int tid)
 {
+    enter_crit_sec();
     // error if thread is unused
     if (threads[tid].state == THREAD_UNUSED)
     {
         fprintf(stderr, "system error: thread doesn't exist\n");
+        exit_crit_sec();
         return -1;
     }
 
@@ -159,6 +195,7 @@ int uthread_terminate(int tid)
         schedule_next();
         // Should never reach here, but just in case:
     }
+    exit_crit_sec();
     return 0;
 }
 
@@ -180,21 +217,25 @@ static void thread_wrapper(void)
 
 int uthread_block(int tid)
 {
+    enter_crit_sec();
     // error if thread is unused
     if (threads[tid].state == THREAD_UNUSED)
     {
         fprintf(stderr, "system error: thread doesn't exist\n");
+        exit_crit_sec();
         return -1;
     }
     // check if its the main thread
     else if (threads[tid].tid == 0)
     {
         fprintf(stderr, "system error: cannot block main thread\n");
+        exit_crit_sec();
         return -1;
     }
     // if not unused or main thread, block it!
     threads[tid].state = THREAD_BLOCKED;
 
+    exit_crit_sec();
     return 0;
 }
 
@@ -202,6 +243,7 @@ int uthread_block(int tid)
 
 int uthread_resume(int tid)
 {
+    enter_crit_sec();
     // putlocked thread in ready state
     if (threads[tid].state == THREAD_BLOCKED)
     {
@@ -209,15 +251,18 @@ int uthread_resume(int tid)
     }
     else if (threads[tid].state == THREAD_READY || threads[tid].state == THREAD_RUNNING)
     {
+        exit_crit_sec();
         return 0;
     }
     // error if thread is unused
     else if (threads[tid].state == THREAD_UNUSED)
     {
         fprintf(stderr, "system error: thread doesn't exist\n");
+        exit_crit_sec();
         return -1;
     }
 
+    exit_crit_sec();
     return 0;
 }
 
@@ -225,15 +270,18 @@ int uthread_resume(int tid)
 
 int uthread_sleep(int num_quantums)
 {
+    enter_crit_sec();
     // error if main thread
     if (current_thread_id == 0)
     {
         fprintf(stderr, "system error: cannot put main thread to sleep\n");
+        exit_crit_sec();
         return -1;
     }
     // sleep & block :))
     threads[current_thread_id].sleep_until = uthread_get_total_quantums() + num_quantums;
     threads[current_thread_id].state = THREAD_BLOCKED;
+    exit_crit_sec();
     return 0;
 }
 
@@ -261,12 +309,14 @@ int uthread_get_quantums(int tid)
         fprintf(stderr, "system error: thread doesn't exist\n");
         return -1;
     }
-    // if the thread is running retrun currents thread quantam count and global count (total)
+
+    // if the thread is running retrun currents + 1 (Before incrament)
     else if (threads[tid].state == THREAD_RUNNING)
     {
-        return threads[tid].quantums + total_quantums;
+        // current quantam + 1 instead
+        return threads[tid].quantums + 1;
     }
-    // return global count (total)
+    // return without +1 (already incramented)
     else
     {
         return threads[tid].quantums;
@@ -286,7 +336,7 @@ int uthread_get_quantums(int tid)
 
 void schedule_next(void)
 {
-
+    enter_crit_sec();
     int next_tid = -1;
     for (int i = 1; i < MAX_THREAD_NUM; i++)
     {
@@ -302,6 +352,7 @@ void schedule_next(void)
     // if thread is not in a ready state return
     if (next_tid == -1)
     {
+        exit_crit_sec();
         return;
     }
 
@@ -309,6 +360,8 @@ void schedule_next(void)
     int prev_tid = current_thread_id;
     current_thread_id = next_tid;
     threads[next_tid].state = THREAD_RUNNING;
+
+    exit_crit_sec();
     context_switch(&threads[prev_tid], &threads[next_tid]);
 }
 
@@ -331,6 +384,7 @@ void context_switch(thread_t *current, thread_t *next)
 
 void timer_handler(int signum)
 {
+    enter_crit_sec();
     // updates global quantum counters
     total_quantums++;
 
@@ -342,6 +396,8 @@ void timer_handler(int signum)
 
     // Schedule next
     schedule_next();
+
+    exit_crit_sec();
 }
 
 //--------------------------------------------------------------------------------------------------//
